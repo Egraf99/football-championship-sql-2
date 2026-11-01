@@ -4,33 +4,21 @@
 
 Условия задания:
 
-Описание информационной системы чемпионата по футболу. Включает в себя:
-игроков, команды, страны или клубы, сетку игр, таблицы результатов.
+Домашнее задание ко второму модулю.
 
-Описание игроков включает: фамилию, имя, дату рождения, страну.
-Описание команд включает в себя перечень игроков и их номеров и амплуа
-в команде. Также команда связана со страной или клубом (что-то одно).
+Подготовка к выполнению домашнего задания:
+Заполните таблицы, созданные в рамках домашнего задания к практическому
+занятию 1, не менее, чем 5-ю осмысленными записями. Данные возьмите
+из аналогичных систем в реальной жизни. Заполнение оформите в виде
+SQL-запросов.
 
-Страна характеризуется кратким и полным названием и регионом (Азия, Европа,
-Африка, Австралия и Океания, Северная Америка, Южная и Латинская Америка).
-Клуб характеризуется кратким и полным названиями.
+Вариант 25:
+1. Выберите матчи (все поля таблицы), в которых разница в забитых мячах
+превысила 5 голов и отсортируйте результат по времени их проведения
+в обратном порядке.
+2. Выберите максимальную разницу в количестве забитых и пропущенных
+голов одной командой.
 
-Сетка игр включает: две команды, участвующие во встрече, день, время и место
-проведения встречи, уровень игры с указанием названия подгруппы для группового
-раунда (групповой раунд, 1/8 финала, ¼ финала, полуфинал, финал,
-игра за 3-е место).
-
-Таблица результатов команд включает для каждого элемента сетки игр:
-счет (включая возможные послематчевые пенальти) и кол-во очков
-для группового этапа.
-
-Таблица результатов голов включает: кто и из какой команды, в каком матче
-(элемент сетки), на какой минуте забил гол.
-
-Таблица результатов нарушений включает, кто и из какой команды, в каком матче,
-какую карточку получил и в какое время.
-
-Игроки не могут менять команды.
 */
 
 -- ВНИМАНИЕ: повторный запуск удаляет перечисленные таблицы и их данные.
@@ -510,3 +498,56 @@ COMMIT;
 
 -------- начало SELECT запросов -----------------
 
+SELECT
+    games.id,
+    games.first_team,
+    games.second_team,
+    games.day,
+    games.time,
+    games.address,
+    games.game_level,
+    games.subgroup
+FROM games
+    INNER JOIN result 
+        ON result.game_id = games.id
+WHERE 
+    ABS(result.first_team_scores - result.second_team_scores) > 5
+ORDER BY 
+    games.day DESC,
+    games.time DESC,
+    games.id DESC;
+
+WITH team_match_goals AS (
+    SELECT
+        games.first_team AS team_id,
+        result.first_team_scores AS goals_scored,
+        result.second_team_scores AS goals_conceded
+    FROM games
+        INNER JOIN result 
+            ON result.game_id = games.id
+
+    UNION ALL
+
+    SELECT
+        games.second_team AS team_id,
+        result.second_team_scores AS goals_scored,
+        result.first_team_scores AS goals_conceded
+    FROM games
+        INNER JOIN result 
+            ON result.game_id = games.id
+),
+
+team_goal_difference AS (
+    SELECT
+        team_match_goals.team_id,
+        (
+            SUM(team_match_goals.goals_scored) - 
+            SUM(team_match_goals.goals_conceded)
+        ) AS goal_difference
+    FROM team_match_goals
+    GROUP BY team_match_goals.team_id
+)
+
+SELECT 
+    MAX(team_goal_difference.goal_difference) AS max_goal_difference
+FROM team_goal_difference;
